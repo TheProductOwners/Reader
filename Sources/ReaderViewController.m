@@ -26,7 +26,6 @@
 #import "ReaderConstants.h"
 #import "ReaderViewController.h"
 #import "ThumbsViewController.h"
-#import "ReaderMainToolbar.h"
 #import "ReaderMainPagebar.h"
 #import "ReaderContentView.h"
 #import "ReaderThumbCache.h"
@@ -35,7 +34,7 @@
 #import <MessageUI/MessageUI.h>
 
 @interface ReaderViewController () <UIScrollViewDelegate, UIGestureRecognizerDelegate, MFMailComposeViewControllerDelegate, UIDocumentInteractionControllerDelegate,
-									ReaderMainToolbarDelegate, ReaderMainPagebarDelegate, ReaderContentViewDelegate, ThumbsViewControllerDelegate>
+									ReaderMainPagebarDelegate, ReaderContentViewDelegate, ThumbsViewControllerDelegate>
 @end
 
 @implementation ReaderViewController
@@ -43,8 +42,6 @@
 	ReaderDocument *document;
 
 	UIScrollView *theScrollView;
-
-	ReaderMainToolbar *mainToolbar;
 
 	ReaderMainPagebar *mainPagebar;
 
@@ -69,9 +66,6 @@
 
 #pragma mark - Constants
 
-#define STATUS_HEIGHT 20.0f
-
-#define TOOLBAR_HEIGHT 44.0f
 #define PAGEBAR_HEIGHT 48.0f
 
 #define SCROLLVIEW_OUTSET_SMALL 4.0f
@@ -120,8 +114,6 @@
 		scrollView.contentOffset = contentOffset; // Update content offset
 	}
 
-	[mainToolbar setBookmarkState:[document.bookmarks containsIndex:page]];
-
 	[mainPagebar updatePagebar]; // Update page bar
 }
 
@@ -130,7 +122,9 @@
 	CGRect viewRect = CGRectZero; viewRect.size = scrollView.bounds.size;
 
 	viewRect.origin.x = (viewRect.size.width * (page - 1)); viewRect = CGRectInset(viewRect, scrollViewOutset, 0.0f);
-
+    
+    viewRect.origin.y = -(PAGEBAR_HEIGHT/2); // Because the toolbar is gone, center the page
+    
 	NSURL *fileURL = document.fileURL; NSString *phrase = document.password; NSString *guid = document.guid; // Document properties
 
 	ReaderContentView *contentView = [[ReaderContentView alloc] initWithFrame:viewRect fileURL:fileURL page:page password:phrase]; // ReaderContentView
@@ -221,8 +215,6 @@
 			}
 		];
 
-		[mainToolbar setBookmarkState:[document.bookmarks containsIndex:page]];
-
 		[mainPagebar updatePagebar]; // Update page bar
 	}
 }
@@ -248,8 +240,6 @@
 				if ([key integerValue] != page) [contentView zoomResetAnimated:NO];
 			}
 		];
-
-		[mainToolbar setBookmarkState:[document.bookmarks containsIndex:page]];
 
 		[mainPagebar updatePagebar]; // Update page bar
 	}
@@ -325,27 +315,25 @@
 	[super viewDidLoad];
 
 	assert(document != nil); // Must have a valid ReaderDocument
+    
+    if(self.viewerBackgroundColor == nil) {
+        self.viewerBackgroundColor = [UIColor lightGrayColor];
+    }
+    self.view.backgroundColor = self.viewerBackgroundColor;
+    
+    UIImage* thumbsImage = [UIImage imageNamed:@"Reader-Thumbs"];
+    CGRect thumbsFrame = CGRectMake(0, 0, thumbsImage.size.width, thumbsImage.size.height);
+    UIButton *thumbsButton = [[UIButton alloc] initWithFrame:thumbsFrame];
+    [thumbsButton setBackgroundImage:thumbsImage forState:UIControlStateNormal];
+    [thumbsButton addTarget:self action:@selector(thumbsButtonClicked)
+         forControlEvents:UIControlEventTouchUpInside];
+    
+    UIBarButtonItem *thumbsBarButton =[[UIBarButtonItem alloc] initWithCustomView:thumbsButton];
+    self.parentViewController.navigationItem.rightBarButtonItem = thumbsBarButton;
 
-	self.view.backgroundColor = [UIColor grayColor]; // Neutral gray
+	CGRect viewRect = self.view.bounds; // View bounds
 
-	UIView *fakeStatusBar = nil; CGRect viewRect = self.view.bounds; // View bounds
-
-	if ([self respondsToSelector:@selector(edgesForExtendedLayout)]) // iOS 7+
-	{
-		if ([self prefersStatusBarHidden] == NO) // Visible status bar
-		{
-			CGRect statusBarRect = viewRect; statusBarRect.size.height = STATUS_HEIGHT;
-			fakeStatusBar = [[UIView alloc] initWithFrame:statusBarRect]; // UIView
-			fakeStatusBar.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-			fakeStatusBar.backgroundColor = [UIColor blackColor];
-			fakeStatusBar.contentMode = UIViewContentModeRedraw;
-			fakeStatusBar.userInteractionEnabled = NO;
-
-			viewRect.origin.y += STATUS_HEIGHT; viewRect.size.height -= STATUS_HEIGHT;
-		}
-	}
-
-	CGRect scrollViewRect = CGRectInset(viewRect, -scrollViewOutset, 0.0f);
+    CGRect scrollViewRect = CGRectInset(viewRect, -scrollViewOutset, 0.0f);
 	theScrollView = [[UIScrollView alloc] initWithFrame:scrollViewRect]; // All
 	theScrollView.autoresizesSubviews = NO; theScrollView.contentMode = UIViewContentModeRedraw;
 	theScrollView.showsHorizontalScrollIndicator = NO; theScrollView.showsVerticalScrollIndicator = NO;
@@ -354,18 +342,11 @@
 	theScrollView.backgroundColor = [UIColor clearColor]; theScrollView.delegate = self;
 	[self.view addSubview:theScrollView];
 
-	CGRect toolbarRect = viewRect; toolbarRect.size.height = TOOLBAR_HEIGHT;
-	mainToolbar = [[ReaderMainToolbar alloc] initWithFrame:toolbarRect document:document]; // ReaderMainToolbar
-	mainToolbar.delegate = self; // ReaderMainToolbarDelegate
-	[self.view addSubview:mainToolbar];
-
 	CGRect pagebarRect = self.view.bounds; pagebarRect.size.height = PAGEBAR_HEIGHT;
 	pagebarRect.origin.y = (self.view.bounds.size.height - pagebarRect.size.height);
 	mainPagebar = [[ReaderMainPagebar alloc] initWithFrame:pagebarRect document:document]; // ReaderMainPagebar
 	mainPagebar.delegate = self; // ReaderMainPagebarDelegate
 	[self.view addSubview:mainPagebar];
-
-	if (fakeStatusBar != nil) [self.view addSubview:fakeStatusBar]; // Add status bar background view
 
 	UITapGestureRecognizer *singleTapOne = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleSingleTap:)];
 	singleTapOne.numberOfTouchesRequired = 1; singleTapOne.numberOfTapsRequired = 1; singleTapOne.delegate = self;
@@ -384,6 +365,19 @@
 	contentViews = [NSMutableDictionary new]; lastHideTime = [NSDate date];
 
 	minimumPage = 1; maximumPage = [document.pageCount integerValue];
+}
+
+- (void)thumbsButtonClicked {
+    ThumbsViewController *thumbsViewController = [[ThumbsViewController alloc] initWithReaderDocument:document];
+    
+    thumbsViewController.title = self.title; thumbsViewController.delegate = self; // ThumbsViewControllerDelegate
+    
+    thumbsViewController.viewerBackgroundColor = self.viewerBackgroundColor;
+    
+    thumbsViewController.modalTransitionStyle = UIModalTransitionStyleCoverVertical;
+    thumbsViewController.modalPresentationStyle = UIModalPresentationCurrentContext;
+    
+    [self.navigationController pushViewController:thumbsViewController animated:YES];
 }
 
 - (void)viewWillAppear:(BOOL)animated
@@ -441,7 +435,7 @@
 	NSLog(@"%s", __FUNCTION__);
 #endif
 
-	mainToolbar = nil; mainPagebar = nil;
+	mainPagebar = nil;
 
 	theScrollView = nil; contentViews = nil; lastHideTime = nil;
 
@@ -450,16 +444,6 @@
 	lastAppearSize = CGSizeZero; currentPage = 0;
 
 	[super viewDidUnload];
-}
-
-- (BOOL)prefersStatusBarHidden
-{
-	return YES;
-}
-
-- (UIStatusBarStyle)preferredStatusBarStyle
-{
-	return UIStatusBarStyleLightContent;
 }
 
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
@@ -601,17 +585,19 @@
 					}
 				}
 			}
-			else // Nothing active tapped in the target content view
+/*			else // Nothing active tapped in the target content view
 			{
 				if ([lastHideTime timeIntervalSinceNow] < -0.75) // Delay since hide
 				{
-					if ((mainToolbar.alpha < 1.0f) || (mainPagebar.alpha < 1.0f)) // Hidden
+					if (mainPagebar.alpha < 1.0f) // Hidden
 					{
-						[mainToolbar showToolbar]; [mainPagebar showPagebar]; // Show
+//                        [self.navigationController setNavigationBarHidden:NO animated:YES];
+//                        [[UIApplication sharedApplication] setStatusBarHidden:NO withAnimation:YES];
+						[mainPagebar showPagebar]; // Show
 					}
 				}
 			}
-
+*/
 			return;
 		}
 
@@ -689,7 +675,8 @@
 
 - (void)contentView:(ReaderContentView *)contentView touchesBegan:(NSSet *)touches
 {
-	if ((mainToolbar.alpha > 0.0f) || (mainPagebar.alpha > 0.0f))
+/*
+	if (mainPagebar.alpha > 0.0f)
 	{
 		if (touches.count == 1) // Single touches only
 		{
@@ -702,158 +689,13 @@
 			if (CGRectContainsPoint(areaRect, point) == false) return;
 		}
 
-		[mainToolbar hideToolbar]; [mainPagebar hidePagebar]; // Hide
+//        [self.navigationController setNavigationBarHidden:YES animated:YES];
+//        [[UIApplication sharedApplication] setStatusBarHidden:YES withAnimation:YES];
+		[mainPagebar hidePagebar]; // Hide
 
 		lastHideTime = [NSDate date]; // Set last hide time
 	}
-}
-
-#pragma mark - ReaderMainToolbarDelegate methods
-
-- (void)tappedInToolbar:(ReaderMainToolbar *)toolbar doneButton:(UIButton *)button
-{
-#if (READER_STANDALONE == FALSE) // Option
-
-	[self closeDocument]; // Close ReaderViewController
-
-#endif // end of READER_STANDALONE Option
-}
-
-- (void)tappedInToolbar:(ReaderMainToolbar *)toolbar thumbsButton:(UIButton *)button
-{
-#if (READER_ENABLE_THUMBS == TRUE) // Option
-
-	if (printInteraction != nil) [printInteraction dismissAnimated:NO];
-
-	ThumbsViewController *thumbsViewController = [[ThumbsViewController alloc] initWithReaderDocument:document];
-
-	thumbsViewController.title = self.title; thumbsViewController.delegate = self; // ThumbsViewControllerDelegate
-
-	thumbsViewController.modalTransitionStyle = UIModalTransitionStyleCrossDissolve;
-	thumbsViewController.modalPresentationStyle = UIModalPresentationFullScreen;
-
-	[self presentViewController:thumbsViewController animated:NO completion:NULL];
-
-#endif // end of READER_ENABLE_THUMBS Option
-}
-
-- (void)tappedInToolbar:(ReaderMainToolbar *)toolbar exportButton:(UIButton *)button
-{
-	if (printInteraction != nil) [printInteraction dismissAnimated:YES];
-
-	NSURL *fileURL = document.fileURL; // Document file URL
-
-	documentInteraction = [UIDocumentInteractionController interactionControllerWithURL:fileURL];
-
-	documentInteraction.delegate = self; // UIDocumentInteractionControllerDelegate
-
-	[documentInteraction presentOpenInMenuFromRect:button.bounds inView:button animated:YES];
-}
-
-- (void)tappedInToolbar:(ReaderMainToolbar *)toolbar printButton:(UIButton *)button
-{
-	if ([UIPrintInteractionController isPrintingAvailable] == YES)
-	{
-		NSURL *fileURL = document.fileURL; // Document file URL
-
-		if ([UIPrintInteractionController canPrintURL:fileURL] == YES)
-		{
-			printInteraction = [UIPrintInteractionController sharedPrintController];
-
-			UIPrintInfo *printInfo = [UIPrintInfo printInfo];
-			printInfo.duplex = UIPrintInfoDuplexLongEdge;
-			printInfo.outputType = UIPrintInfoOutputGeneral;
-			printInfo.jobName = document.fileName;
-
-			printInteraction.printInfo = printInfo;
-			printInteraction.printingItem = fileURL;
-			printInteraction.showsPageRange = YES;
-
-			if (userInterfaceIdiom == UIUserInterfaceIdiomPad) // Large device printing
-			{
-				[printInteraction presentFromRect:button.bounds inView:button animated:YES completionHandler:
-					^(UIPrintInteractionController *pic, BOOL completed, NSError *error)
-					{
-						#ifdef DEBUG
-							if ((completed == NO) && (error != nil)) NSLog(@"%s %@", __FUNCTION__, error);
-						#endif
-					}
-				];
-			}
-			else // Handle printing on small device
-			{
-				[printInteraction presentAnimated:YES completionHandler:
-					^(UIPrintInteractionController *pic, BOOL completed, NSError *error)
-					{
-						#ifdef DEBUG
-							if ((completed == NO) && (error != nil)) NSLog(@"%s %@", __FUNCTION__, error);
-						#endif
-					}
-				];
-			}
-		}
-	}
-}
-
-- (void)tappedInToolbar:(ReaderMainToolbar *)toolbar emailButton:(UIButton *)button
-{
-	if ([MFMailComposeViewController canSendMail] == NO) return;
-
-	if (printInteraction != nil) [printInteraction dismissAnimated:YES];
-
-	unsigned long long fileSize = [document.fileSize unsignedLongLongValue];
-
-	if (fileSize < 15728640ull) // Check attachment size limit (15MB)
-	{
-		NSURL *fileURL = document.fileURL; NSString *fileName = document.fileName;
-
-		NSData *attachment = [NSData dataWithContentsOfURL:fileURL options:(NSDataReadingMapped|NSDataReadingUncached) error:nil];
-
-		if (attachment != nil) // Ensure that we have valid document file attachment data available
-		{
-			MFMailComposeViewController *mailComposer = [MFMailComposeViewController new];
-
-			[mailComposer addAttachmentData:attachment mimeType:@"application/pdf" fileName:fileName];
-
-			[mailComposer setSubject:fileName]; // Use the document file name for the subject
-
-			mailComposer.modalTransitionStyle = UIModalTransitionStyleCoverVertical;
-			mailComposer.modalPresentationStyle = UIModalPresentationFormSheet;
-
-			mailComposer.mailComposeDelegate = self; // MFMailComposeViewControllerDelegate
-
-			[self presentViewController:mailComposer animated:YES completion:NULL];
-		}
-	}
-}
-
-- (void)tappedInToolbar:(ReaderMainToolbar *)toolbar markButton:(UIButton *)button
-{
-#if (READER_BOOKMARKS == TRUE) // Option
-
-	if (printInteraction != nil) [printInteraction dismissAnimated:YES];
-
-	if ([document.bookmarks containsIndex:currentPage]) // Remove bookmark
-	{
-		[document.bookmarks removeIndex:currentPage]; [mainToolbar setBookmarkState:NO];
-	}
-	else // Add the bookmarked page number to the bookmark index set
-	{
-		[document.bookmarks addIndex:currentPage]; [mainToolbar setBookmarkState:YES];
-	}
-
-#endif // end of READER_BOOKMARKS Option
-}
-
-#pragma mark - MFMailComposeViewControllerDelegate methods
-
-- (void)mailComposeController:(MFMailComposeViewController *)controller didFinishWithResult:(MFMailComposeResult)result error:(NSError *)error
-{
-#ifdef DEBUG
-	if ((result == MFMailComposeResultFailed) && (error != NULL)) NSLog(@"%@", error);
-#endif
-
-	[self dismissViewControllerAnimated:YES completion:NULL];
+*/
 }
 
 #pragma mark - UIDocumentInteractionControllerDelegate methods
@@ -878,7 +720,7 @@
 {
 #if (READER_ENABLE_THUMBS == TRUE) // Option
 
-	[self dismissViewControllerAnimated:NO completion:NULL];
+	[self dismissViewControllerAnimated:YES completion:NULL];
 
 #endif // end of READER_ENABLE_THUMBS Option
 }

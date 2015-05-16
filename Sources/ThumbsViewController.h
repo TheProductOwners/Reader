@@ -25,7 +25,6 @@
 
 #import <UIKit/UIKit.h>
 
-#import "ThumbsMainToolbar.h"
 #import "ReaderThumbsView.h"
 
 @class ReaderDocument;
@@ -44,6 +43,7 @@
 @interface ThumbsViewController : UIViewController
 
 @property (nonatomic, weak, readwrite) id <ThumbsViewControllerDelegate> delegate;
+@property (nonatomic, strong, readwrite) UIColor *viewerBackgroundColor;
 
 - (instancetype)initWithReaderDocument:(ReaderDocument *)object;
 

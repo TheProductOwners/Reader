@@ -38,11 +38,7 @@
 
 + (Class)layerClass
 {
-#if (READER_FLAT_UI == FALSE) // Option
-	return [CAGradientLayer class];
-#else
 	return [CALayer class];
-#endif // end of READER_FLAT_UI Option
 }
 
 #pragma mark - UIXToolbarView instance methods

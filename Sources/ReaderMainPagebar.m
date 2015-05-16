@@ -73,11 +73,7 @@
 
 + (Class)layerClass
 {
-#if (READER_FLAT_UI == FALSE) // Option
-	return [CAGradientLayer class];
-#else
 	return [CALayer class];
-#endif // end of READER_FLAT_UI Option
 }
 
 #pragma mark - ReaderMainPagebar instance methods
@@ -181,7 +177,7 @@
 			lineView.contentMode = UIViewContentModeRedraw;
 			lineView.autoresizingMask = UIViewAutoresizingFlexibleWidth;
 			lineView.backgroundColor = [UIColor colorWithWhite:0.64f alpha:0.94f];
-			[self addSubview:lineView];
+//			[self addSubview:lineView];
 		}
 
 		CGFloat space = (([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPad) ? PAGE_NUMBER_SPACE_LARGE : PAGE_NUMBER_SPACE_SMALL);
@@ -193,12 +189,7 @@
 		pageNumberView.autoresizesSubviews = NO;
 		pageNumberView.userInteractionEnabled = NO;
 		pageNumberView.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin;
-		pageNumberView.backgroundColor = [UIColor colorWithWhite:0.0f alpha:0.4f];
-
-		pageNumberView.layer.shadowOffset = CGSizeMake(0.0f, 0.0f);
-		pageNumberView.layer.shadowColor = [UIColor colorWithWhite:0.0f alpha:0.6f].CGColor;
-		pageNumberView.layer.shadowPath = [UIBezierPath bezierPathWithRect:pageNumberView.bounds].CGPath;
-		pageNumberView.layer.shadowRadius = 2.0f; pageNumberView.layer.shadowOpacity = 1.0f;
+		pageNumberView.backgroundColor = [UIColor colorWithWhite:0.0f alpha:0.6f];
 
 		CGRect textRect = CGRectInset(pageNumberView.bounds, 4.0f, 2.0f); // Inset the text a bit
 
@@ -209,9 +200,8 @@
 		pageNumberLabel.textAlignment = NSTextAlignmentCenter;
 		pageNumberLabel.backgroundColor = [UIColor clearColor];
 		pageNumberLabel.textColor = [UIColor whiteColor];
-		pageNumberLabel.font = [UIFont systemFontOfSize:16.0f];
-		pageNumberLabel.shadowOffset = CGSizeMake(0.0f, 1.0f);
-		pageNumberLabel.shadowColor = [UIColor blackColor];
+#warning Font is not very dynamic
+        pageNumberLabel.font = [UIFont fontWithName:@"AvenirLTStd-Light" size:16];
 		pageNumberLabel.adjustsFontSizeToFitWidth = YES;
 		pageNumberLabel.minimumScaleFactor = 0.75f;
 

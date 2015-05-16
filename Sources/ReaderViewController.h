@@ -40,6 +40,7 @@
 @interface ReaderViewController : UIViewController
 
 @property (nonatomic, weak, readwrite) id <ReaderViewControllerDelegate> delegate;
+@property (nonatomic, strong, readwrite) UIColor *viewerBackgroundColor;
 
 - (instancetype)initWithReaderDocument:(ReaderDocument *)object;
 
