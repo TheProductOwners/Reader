@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
  s.name = 'Reader'
- s.version = '2.8.6-TA'
+ s.version = '2.8.6-TA-20150616'
  s.license = 'MIT'
  s.summary = 'The open source PDF file reader/viewer for iOS.'
  s.homepage = 'http://www.vfr.org/'
