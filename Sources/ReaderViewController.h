@@ -34,6 +34,7 @@
 @optional // Delegate protocols
 
 - (void)dismissReaderViewController:(ReaderViewController *)viewController;
+- (void)readerViewController:(ReaderViewController *)viewController didOpenPageNumber:(NSNumber*)pageNumber;
 
 @end
 

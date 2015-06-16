@@ -207,6 +207,10 @@
 	if (page != currentPage) // Only if on different page
 	{
 		currentPage = page; document.pageNumber = [NSNumber numberWithInteger:page];
+        
+        if ([delegate respondsToSelector:@selector(readerViewController:didOpenPageNumber:)] == YES) {
+            [delegate readerViewController:self didOpenPageNumber:document.pageNumber];
+        }
 
 		[contentViews enumerateKeysAndObjectsUsingBlock: // Enumerate content views
 			^(NSNumber *key, ReaderContentView *contentView, BOOL *stop)
@@ -226,6 +230,10 @@
 		if ((page < minimumPage) || (page > maximumPage)) return;
 
 		currentPage = page; document.pageNumber = [NSNumber numberWithInteger:page];
+        
+        if ([delegate respondsToSelector:@selector(readerViewController:didOpenPageNumber:)] == YES) {
+            [delegate readerViewController:self didOpenPageNumber:document.pageNumber];
+        }
 
 		CGPoint contentOffset = CGPointMake((theScrollView.bounds.size.width * (page - 1)), 0.0f);
 
